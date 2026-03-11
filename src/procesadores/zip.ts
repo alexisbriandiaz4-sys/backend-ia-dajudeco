@@ -36,38 +36,28 @@ async function procesarZipBuffer(
   acumulados: ArchivoDescomprimido[]
 ): Promise<void> {
   try {
-    const stream = Readable.from(buffer)
-    const zip = stream.pipe(unzipper.Parse({ forceStream: true }))
+    // Usar Open.buffer para soportar tanto el ZIP principal como los anidados
+    const zip = await unzipper.Open.buffer(buffer)
 
-    for await (const entry of zip) {
-      const nombre: string = entry.path
-      const tipo = entry.type
+    for (const entry of zip.files) {
+      const nombre = entry.path
 
-      if (tipo === 'Directory') {
-        entry.autodrain()
-        continue
-      }
+      // Ignorar directorios
+      if (entry.type === 'Directory') continue
 
+      // Ignorar archivos del sistema
       if (
         nombre.startsWith('__MACOSX') ||
         nombre.startsWith('.') ||
         nombre.includes('/__MACOSX/') ||
         nombre.includes('/.')
-      ) {
-        entry.autodrain()
-        continue
-      }
+      ) continue
 
-      if (acumulados.length >= MAX_ARCHIVOS) {
-        entry.autodrain()
-        continue
-      }
+      // Límite total de archivos
+      if (acumulados.length >= MAX_ARCHIVOS) break
 
-      const chunks: Buffer[] = []
-      for await (const chunk of entry) {
-        chunks.push(chunk)
-      }
-      const archivoBuffer = Buffer.concat(chunks)
+      // Leer el contenido del entry
+      const archivoBuffer: Buffer = await entry.buffer()
 
       if (archivoBuffer.length > MAX_BYTES_POR_ARCHIVO) {
         acumulados.push({ nombre, contenido: '[Archivo muy grande, omitido]' })
