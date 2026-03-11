@@ -83,7 +83,14 @@ router.post('/', async (req: Request, res: Response) => {
       console.log(`[${new Date().toISOString()}] ✓ Análisis de Worker completado: ${nombre}. Enviando reporte Webhook.`)
       
       // 4. Devolver resultado usando Webhook al servidor primario
-      const SAP_URL = webhookUrl || process.env.SAP_WEBHOOK_URL || 'http://localhost:3000'
+      let SAP_URL = webhookUrl || process.env.SAP_WEBHOOK_URL || 'http://localhost:3000'
+      if (SAP_URL && !SAP_URL.startsWith('http')) {
+        SAP_URL = 'https://' + SAP_URL
+      }
+      if (SAP_URL.endsWith('/')) {
+        SAP_URL = SAP_URL.slice(0, -1)
+      }
+      
       const SAP_SECRET = process.env.API_SECRET || process.env.SAP_WEBHOOK_SECRET || ''
 
       console.log(`[INFO WEBHOOK] Despachando callback a -> ${SAP_URL}/api/ia/callback`)
@@ -112,7 +119,14 @@ router.post('/', async (req: Request, res: Response) => {
       console.error(`[CRÍTICO ASYNC] Worker colapsó procesando ${nombre}:`, error)
       // Idealmente, se debe avisar a backend de NextJS del fracaso, pero omitimos por ahora la res.
       
-      const SAP_URL = webhookUrl || process.env.SAP_WEBHOOK_URL || 'http://localhost:3000'
+      let SAP_URL = webhookUrl || process.env.SAP_WEBHOOK_URL || 'http://localhost:3000'
+      if (SAP_URL && !SAP_URL.startsWith('http')) {
+        SAP_URL = 'https://' + SAP_URL
+      }
+      if (SAP_URL.endsWith('/')) {
+        SAP_URL = SAP_URL.slice(0, -1)
+      }
+
       const SAP_SECRET = process.env.API_SECRET || process.env.SAP_WEBHOOK_SECRET || ''
       try {
         await fetch(`${SAP_URL}/api/ia/callback`, {
