@@ -7,7 +7,7 @@ export async function extraerTextoExcel(buffer: Buffer): Promise<string> {
 
     for (const nombreHoja of workbook.SheetNames) {
       const hoja = workbook.Sheets[nombreHoja]
-      const datos = XLSX.utils.sheet_to_json(hoja, { header: 1 }) as any[][]
+      const datos = XLSX.utils.sheet_to_json(hoja, { header: 1 }) as (string | number | boolean | null | undefined)[][]
 
       lineas.push(`\n=== Hoja: ${nombreHoja} ===`)
       for (const fila of datos.slice(0, 100)) { // máximo 100 filas por hoja
