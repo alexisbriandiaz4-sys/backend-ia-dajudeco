@@ -36,13 +36,20 @@ Sé preciso, objetivo y usa lenguaje judicial formal. Si no encontrás informaci
 export async function analizarConGroq(contenido: string, nombreArchivo: string): Promise<string> {
   try {
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+
+    // Limitar contenido para no superar el límite de tokens de Groq (~6000 chars ≈ 1500 tokens)
+    const LIMITE = 6000
+    const contenidoTruncado = contenido.length > LIMITE
+      ? contenido.substring(0, LIMITE) + `\n\n...[CONTENIDO TRUNCADO — el archivo tenía ${contenido.length} caracteres en total]`
+      : contenido
+
     const response = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: [
         { role: 'system', content: PROMPT_SISTEMA },
         {
           role: 'user',
-          content: `Analizá el siguiente contenido extraído del archivo "${nombreArchivo}":\n\n${contenido}`
+          content: `Analizá el siguiente contenido extraído del archivo "${nombreArchivo}":\n\n${contenidoTruncado}`
         }
       ],
       max_tokens: 2000,
