@@ -16,10 +16,11 @@ interface BodyAnalizar {
   nombre: string
   legajoId: string
   archivoId: string
+  webhookUrl?: string
 }
 
 router.post('/', async (req: Request, res: Response) => {
-  const { url, tipo, nombre, legajoId, archivoId } = req.body as BodyAnalizar
+  const { url, tipo, nombre, legajoId, archivoId, webhookUrl } = req.body as BodyAnalizar
 
   // Validar campos requeridos
   if (!url || !tipo || !nombre || !legajoId || !archivoId) {
@@ -82,8 +83,8 @@ router.post('/', async (req: Request, res: Response) => {
       console.log(`[${new Date().toISOString()}] ✓ Análisis de Worker completado: ${nombre}. Enviando reporte Webhook.`)
       
       // 4. Devolver resultado usando Webhook al servidor primario
-      const SAP_URL = process.env.SAP_WEBHOOK_URL || 'http://localhost:3000'
-      const SAP_SECRET = process.env.API_SECRET || ''
+      const SAP_URL = webhookUrl || process.env.SAP_WEBHOOK_URL || 'http://localhost:3000'
+      const SAP_SECRET = process.env.API_SECRET || process.env.SAP_WEBHOOK_SECRET || ''
 
       try {
         await fetch(`${SAP_URL}/api/ia/callback`, {
@@ -109,8 +110,8 @@ router.post('/', async (req: Request, res: Response) => {
       console.error(`[CRÍTICO ASYNC] Worker colapsó procesando ${nombre}:`, error)
       // Idealmente, se debe avisar a backend de NextJS del fracaso, pero omitimos por ahora la res.
       
-      const SAP_URL = process.env.SAP_WEBHOOK_URL || 'http://localhost:3000'
-      const SAP_SECRET = process.env.API_SECRET || ''
+      const SAP_URL = webhookUrl || process.env.SAP_WEBHOOK_URL || 'http://localhost:3000'
+      const SAP_SECRET = process.env.API_SECRET || process.env.SAP_WEBHOOK_SECRET || ''
       try {
         await fetch(`${SAP_URL}/api/ia/callback`, {
           method: 'POST',
