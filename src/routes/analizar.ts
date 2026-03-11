@@ -5,6 +5,7 @@ import { extraerTextoWord } from '../procesadores/word'
 import { extraerTextoExcel } from '../procesadores/excel'
 import { describirImagen } from '../procesadores/imagen'
 import { procesarZip } from '../procesadores/zip'
+import { procesarRar } from '../procesadores/rar'
 import { analizarConGroq } from '../ia/groq'
 
 const router = Router()
@@ -55,8 +56,8 @@ router.post('/', async (req: Request, res: Response) => {
     } else if (tipo === 'application/zip' || tipo === 'application/x-zip-compressed' || ext === 'zip') {
       contenidoExtraido = await procesarZip(buffer)
 
-    } else if (ext === 'rar') {
-      contenidoExtraido = '[Archivos RAR no son procesables directamente. Convertí a ZIP para análisis.]'
+    } else if (tipo === 'application/x-rar-compressed' || tipo === 'application/vnd.rar' || ext === 'rar') {
+      contenidoExtraido = await procesarRar(buffer)
 
     } else {
       contenidoExtraido = `[Tipo de archivo no soportado: ${tipo}]`
