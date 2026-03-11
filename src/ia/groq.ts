@@ -33,14 +33,12 @@ Tipo de archivo, estructura, observaciones técnicas.
 
 Sé preciso, objetivo y usa lenguaje judicial formal. Si no encontrás información para una sección, indicá "Sin datos".`
 
-export async function analizarConGroq(contenido: string, nombreArchivo: string): Promise<string> {
+export async function analizarConGroq(contenido: string, nombreArchivo: string, limite: number = 12000): Promise<string> {
   try {
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
-    // Limitar contenido para no superar el límite de tokens de Groq (~3500 chars ≈ 875 tokens)
-    const LIMITE = 3500
-    const contenidoTruncado = contenido.length > LIMITE
-      ? contenido.substring(0, LIMITE) + `\n\n...[CONTENIDO TRUNCADO — el archivo tenía ${contenido.length} caracteres en total]`
+    const contenidoTruncado = contenido.length > limite
+      ? contenido.substring(0, limite) + `\n\n...[CONTENIDO TRUNCADO — el archivo tenía ${contenido.length} caracteres en total]`
       : contenido
 
     const response = await groq.chat.completions.create({

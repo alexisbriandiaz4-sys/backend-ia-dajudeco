@@ -63,8 +63,10 @@ router.post('/', async (req: Request, res: Response) => {
       contenidoExtraido = `[Tipo de archivo no soportado: ${tipo}]`
     }
 
-    // 3. Analizar con Groq
-    const informe = await analizarConGroq(contenidoExtraido, nombre)
+    // 3. Analizar con Groq (límite diferenciado por tipo)
+    const esComprimido = tipo === 'application/zip' || tipo === 'application/x-zip-compressed' || ext === 'zip' ||
+                         tipo === 'application/x-rar-compressed' || tipo === 'application/vnd.rar' || ext === 'rar'
+    const informe = await analizarConGroq(contenidoExtraido, nombre, esComprimido ? 3500 : 12000)
 
     // 4. Devolver resultado
     console.log(`[${new Date().toISOString()}] ✓ Análisis completado: ${nombre}`)
