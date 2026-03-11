@@ -86,6 +86,8 @@ router.post('/', async (req: Request, res: Response) => {
       const SAP_URL = webhookUrl || process.env.SAP_WEBHOOK_URL || 'http://localhost:3000'
       const SAP_SECRET = process.env.API_SECRET || process.env.SAP_WEBHOOK_SECRET || ''
 
+      console.log(`[INFO WEBHOOK] Despachando callback a -> ${SAP_URL}/api/ia/callback`)
+
       try {
         await fetch(`${SAP_URL}/api/ia/callback`, {
           method: 'POST',
