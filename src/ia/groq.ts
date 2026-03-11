@@ -37,8 +37,8 @@ export async function analizarConGroq(contenido: string, nombreArchivo: string):
   try {
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
-    // Limitar contenido para no superar el límite de tokens de Groq (~6000 chars ≈ 1500 tokens)
-    const LIMITE = 6000
+    // Limitar contenido para no superar el límite de tokens de Groq (~3500 chars ≈ 875 tokens)
+    const LIMITE = 3500
     const contenidoTruncado = contenido.length > LIMITE
       ? contenido.substring(0, LIMITE) + `\n\n...[CONTENIDO TRUNCADO — el archivo tenía ${contenido.length} caracteres en total]`
       : contenido

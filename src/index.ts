@@ -38,6 +38,8 @@ app.listen(PORT, () => {
   console.log(`✅ Backend IA DAJUDECO corriendo en puerto ${PORT}`)
   console.log(`   Health check: http://localhost:${PORT}/health`)
   console.log(`   Endpoint: POST http://localhost:${PORT}/analizar`)
+  console.log(`   ZIP recursivo: activado (Open.buffer)`)
+  console.log(`   Límite de contenido Groq: 3500 chars`)
 })
 
 export default app
