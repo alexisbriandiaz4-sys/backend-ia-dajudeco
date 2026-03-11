@@ -5,7 +5,7 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
-RUN ./node_modules/.bin/tsc
+RUN chmod +x ./node_modules/.bin/tsc && ./node_modules/.bin/tsc
 
 FROM node:20-alpine AS runner
 
@@ -13,7 +13,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY package*.json ./
-# Solo instalamos dependencias de producción
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
