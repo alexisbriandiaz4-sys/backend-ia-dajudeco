@@ -6,7 +6,7 @@ import { extraerTextoExcel } from '../procesadores/excel'
 import { describirImagen } from '../procesadores/imagen'
 import { procesarZip } from '../procesadores/zip'
 import { procesarRar } from '../procesadores/rar'
-import { analizarConGroq } from '../ia/groq'
+import { analizarConGroq, extraerGrafosConGroq, transcribirAudioConGroq } from '../ia/groq'
 
 const router = Router()
 
@@ -60,14 +60,24 @@ router.post('/', async (req: Request, res: Response) => {
         contenidoExtraido = await procesarZip(buffer)
       } else if (tipo === 'application/x-rar-compressed' || tipo === 'application/vnd.rar' || ext === 'rar') {
         contenidoExtraido = await procesarRar(buffer)
+      } else if (['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/x-m4a', 'audio/mp4', 'video/mp4'].includes(tipo) || ['mp3', 'wav', 'ogg', 'm4a', 'mp4'].includes(ext)) {
+        // Enviar Buffer como audio a Whisper - Groq permite máx 25MB
+        console.log(`[AUDIO] Enviando ${nombre} a Whisper IA...`)
+        contenidoExtraido = await transcribirAudioConGroq(buffer, nombre)
       } else {
         contenidoExtraido = `[Tipo de archivo no soportado: ${tipo}]`
       }
 
-      // 3. Analizar con Groq (límite diferenciado por tipo)
+      // 3. Analizar con Groq (límite diferenciado por tipo) - en PARALELO (Resumen Textual + Grafo JSON)
       const esComprimido = tipo === 'application/zip' || tipo === 'application/x-zip-compressed' || ext === 'zip' ||
                            tipo === 'application/x-rar-compressed' || tipo === 'application/vnd.rar' || ext === 'rar'
-      const informe = await analizarConGroq(contenidoExtraido, nombre, esComprimido ? 3500 : 12000)
+                           
+      const limiteTexto = esComprimido ? 3500 : 12000;
+      
+      const [informe, grafos] = await Promise.all([
+        analizarConGroq(contenidoExtraido, nombre, limiteTexto),
+        extraerGrafosConGroq(contenidoExtraido, limiteTexto)
+      ])
 
       console.log(`[${new Date().toISOString()}] ✓ Análisis de Worker completado: ${nombre}. Enviando reporte Webhook.`)
       
@@ -87,6 +97,7 @@ router.post('/', async (req: Request, res: Response) => {
             archivoId,
             legajoId,
             informe,
+            grafos: grafos.conexiones,
             procesadoEn: new Date().toISOString()
           })
         })
