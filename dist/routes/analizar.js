@@ -14,7 +14,7 @@ const rar_1 = require("../procesadores/rar");
 const groq_1 = require("../ia/groq");
 const router = (0, express_1.Router)();
 router.post('/', async (req, res) => {
-    const { url, tipo, nombre, legajoId, archivoId } = req.body;
+    const { url, tipo, nombre, legajoId, archivoId, webhookUrl } = req.body;
     // Validar campos requeridos
     if (!url || !tipo || !nombre || !legajoId || !archivoId) {
         return res.status(400).json({ error: 'Faltan campos requeridos: url, tipo, nombre, legajoId, archivoId' });
@@ -72,8 +72,20 @@ router.post('/', async (req, res) => {
             ]);
             console.log(`[${new Date().toISOString()}] ✓ Análisis de Worker completado: ${nombre}. Enviando reporte Webhook.`);
             // 4. Devolver resultado usando Webhook al servidor primario
-            const SAP_URL = process.env.SAP_WEBHOOK_URL || 'http://localhost:3000';
-            const SAP_SECRET = process.env.API_SECRET || '';
+            let SAP_URL = webhookUrl || process.env.SAP_WEBHOOK_URL || 'http://localhost:3000';
+            // Si el frontend está corriendo localmente, mandará localhost. 
+            // Railway en la nube no puede alcanzar el localhost de la PC del usuario.
+            if (SAP_URL.includes('localhost') && process.env.SAP_WEBHOOK_URL) {
+                SAP_URL = process.env.SAP_WEBHOOK_URL;
+            }
+            if (SAP_URL && !SAP_URL.startsWith('http')) {
+                SAP_URL = 'https://' + SAP_URL;
+            }
+            if (SAP_URL.endsWith('/')) {
+                SAP_URL = SAP_URL.slice(0, -1);
+            }
+            const SAP_SECRET = process.env.API_SECRET || process.env.SAP_WEBHOOK_SECRET || '';
+            console.log(`[INFO WEBHOOK] Despachando callback a -> ${SAP_URL}/api/ia/callback`);
             try {
                 await (0, node_fetch_1.default)(`${SAP_URL}/api/ia/callback`, {
                     method: 'POST',
@@ -98,8 +110,17 @@ router.post('/', async (req, res) => {
         catch (error) {
             console.error(`[CRÍTICO ASYNC] Worker colapsó procesando ${nombre}:`, error);
             // Idealmente, se debe avisar a backend de NextJS del fracaso, pero omitimos por ahora la res.
-            const SAP_URL = process.env.SAP_WEBHOOK_URL || 'http://localhost:3000';
-            const SAP_SECRET = process.env.API_SECRET || '';
+            let SAP_URL = webhookUrl || process.env.SAP_WEBHOOK_URL || 'http://localhost:3000';
+            if (SAP_URL.includes('localhost') && process.env.SAP_WEBHOOK_URL) {
+                SAP_URL = process.env.SAP_WEBHOOK_URL;
+            }
+            if (SAP_URL && !SAP_URL.startsWith('http')) {
+                SAP_URL = 'https://' + SAP_URL;
+            }
+            if (SAP_URL.endsWith('/')) {
+                SAP_URL = SAP_URL.slice(0, -1);
+            }
+            const SAP_SECRET = process.env.API_SECRET || process.env.SAP_WEBHOOK_SECRET || '';
             try {
                 await (0, node_fetch_1.default)(`${SAP_URL}/api/ia/callback`, {
                     method: 'POST',

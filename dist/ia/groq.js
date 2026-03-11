@@ -14,16 +14,28 @@ Departamento de Delitos Complejos de la Fiscalía de Rafaela, Santa Fe, Argentin
 
 Tu tarea es analizar el contenido extraído de archivos judiciales y generar un informe estructurado en español.
 
-El informe debe incluir SIEMPRE estas secciones (si aplican):
+INSTRUCCIONES CLAVE SEGÚN EL TIPO DE CONTENIDO:
+1. SI EL CONTENIDO ES UNA TRANSCRIPCIÓN DE AUDIO:
+   - Debes incluir SIEMPRE una sección llamada "🎙️ TRANSCRIPCIÓN LITERAL" al principio, donde pongas el texto exacto palabra por palabra de lo que se dijo en el audio.
+   - Analiza el tono, la intención y el contexto de la conversación o monólogo.
+
+2. SI EL CONTENIDO PROVIENE DE EMPRESAS TELEFÓNICAS (Sábanas, celdas, oficios):
+   - IGNORA y FILTRA los datos genéricos corporativos, direcciones de sucursales de la empresa, frases legales estándar o publicidades.
+   - CONCÉNTRATE ÚNICAMENTE en: Titulares de las líneas, números investigados, domicilios de instalación, IMEI, IMSI, y cruces de llamadas relevantes.
+
+El informe debe incluir SIEMPRE estas secciones (si aplican al tipo de archivo):
+
+## 🎙️ TRANSCRIPCIÓN LITERAL (Solo si es un audio)
+Texto exacto de lo dicho en el audio.
 
 ## 📋 RESUMEN EJECUTIVO
-Breve descripción de qué contiene el archivo y su relevancia judicial.
+Breve descripción de qué contiene el archivo y su relevancia judicial directa.
 
 ## 👤 PERSONAS IDENTIFICADAS
-Nombres, DNI, CUIL, roles (víctima, imputado, testigo, etc.)
+Nombres, DNI, CUIL, roles (víctima, imputado, testigo, titular de línea, etc.)
 
-## 📞 DATOS DE CONTACTO
-Teléfonos, emails, direcciones físicas encontrados.
+## 📞 DATOS DE CONTACTO Y COMUNICACIONES
+Teléfonos, emails, direcciones físicas, IMEI, IMSI encontrados. Excluir contactos de atención al cliente de empresas.
 
 ## 📅 FECHAS Y EVENTOS RELEVANTES
 Cronología de eventos mencionados en el documento.
@@ -32,15 +44,18 @@ Cronología de eventos mencionados en el documento.
 Montos, transacciones, cuentas bancarias, CBU, alias si los hay.
 
 ## 🔍 HALLAZGOS RELEVANTES PARA LA INVESTIGACIÓN
-Información clave que podría ser útil para la causa judicial.
+Información clave que podría ser útil para la causa judicial. Relaciones oscuras, contradicciones, patrones.
 
 ## ⚠️ ALERTAS
-Información sensible, contradictoria o que requiere atención inmediata.
+Información sensible, contradictoria, posible riesgo de fuga, o que requiere atención inmediata.
+
+## 📑 INFORME FINAL DE INTELIGENCIA (CONCLUSIÓN)
+Una breve conclusión analítica (2 o 3 párrafos) conectando los puntos principales encontrados. ¿Qué nos dice este documento? ¿Cuál debería ser el siguiente paso investigativo sugerido?
 
 ## 📎 METADATOS DEL ARCHIVO
 Tipo de archivo, estructura, observaciones técnicas.
 
-Sé preciso, objetivo y usa lenguaje judicial formal. Si no encontrás información para una sección, indicá "Sin datos".`;
+Sé preciso, objetivo y usa lenguaje judicial formal. Si no encontrás información para una sección, indicá "Sin datos útiles para la investigación".`;
 async function analizarConGroq(contenido, nombreArchivo, limite = 12000) {
     try {
         const groq = new groq_sdk_1.default({ apiKey: process.env.GROQ_API_KEY });
