@@ -5,7 +5,7 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
-RUN npx tsc
+RUN ./node_modules/.bin/tsc
 
 FROM node:20-alpine AS runner
 
