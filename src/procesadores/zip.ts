@@ -10,7 +10,9 @@ interface ArchivoDescomprimido {
 }
 
 const MAX_ARCHIVOS = 20
-const MAX_BYTES_POR_ARCHIVO = 5 * 1024 * 1024 // 5MB
+const MAX_BYTES_POR_ARCHIVO = 10 * 1024 * 1024 // 10MB
+const MAX_BYTES_TOTALES = 50 * 1024 * 1024     // 50MB acumulativos de extracción total para prevenir ZIP Bombs
+const MAX_PROFUNDIDAD = 3                      // Máximo de carpetas/zips de anidamiento
 
 async function procesarArchivo(buffer: Buffer, nombre: string): Promise<string> {
   const ext = nombre.split('.').pop()?.toLowerCase() ?? ''
@@ -33,8 +35,14 @@ async function procesarArchivo(buffer: Buffer, nombre: string): Promise<string> 
 async function procesarZipBuffer(
   buffer: Buffer,
   nombreZip: string,
-  acumulados: ArchivoDescomprimido[]
+  acumulados: ArchivoDescomprimido[],
+  estadoGlobal: { bytesTotales: number, archivosProcesados: number },
+  profundidadActual: number = 0
 ): Promise<void> {
+  if (profundidadActual > MAX_PROFUNDIDAD) {
+    acumulados.push({ nombre: nombreZip, contenido: '[Profundidad máxima de carpetas/ZIPs alcanzada. Vulnerabilidad ZIP Bomb prevenida.]' })
+    return
+  }
   try {
     // Usar Open.buffer para soportar tanto el ZIP principal como los anidados
     const zip = await unzipper.Open.buffer(buffer)
@@ -54,26 +62,36 @@ async function procesarZipBuffer(
       ) continue
 
       // Límite total de archivos
-      if (acumulados.length >= MAX_ARCHIVOS) break
+      if (estadoGlobal.archivosProcesados >= MAX_ARCHIVOS) break
 
       // Leer el contenido del entry
       const archivoBuffer: Buffer = await entry.buffer()
 
+      // Límite Acumulativo Total (Defensa activa contra bomba de descompresión geométrica)
+      estadoGlobal.bytesTotales += archivoBuffer.length
+      if (estadoGlobal.bytesTotales > MAX_BYTES_TOTALES) {
+        acumulados.push({ nombre, contenido: `[Límite crítico de seguridad alcanzado (${MAX_BYTES_TOTALES / 1024 / 1024}MB). Extracción abortada para proteger el servidor del colapso.]` })
+        break 
+      }
+
       if (archivoBuffer.length > MAX_BYTES_POR_ARCHIVO) {
         acumulados.push({ nombre, contenido: '[Archivo muy grande, omitido]' })
+        estadoGlobal.archivosProcesados++
         continue
       }
 
       const ext = nombre.split('.').pop()?.toLowerCase() ?? ''
 
       if (ext === 'zip') {
-        // ZIP anidado — entrar recursivamente
-        await procesarZipBuffer(archivoBuffer, nombre, acumulados)
+        // ZIP anidado — entrar recursivamente sumando profundidad
+        await procesarZipBuffer(archivoBuffer, nombre, acumulados, estadoGlobal, profundidadActual + 1)
+        estadoGlobal.archivosProcesados++
         continue
       }
 
       const contenido = await procesarArchivo(archivoBuffer, nombre)
       acumulados.push({ nombre, contenido })
+      estadoGlobal.archivosProcesados++
     }
   } catch (error) {
     acumulados.push({
@@ -85,7 +103,8 @@ async function procesarZipBuffer(
 
 export async function procesarZip(buffer: Buffer): Promise<string> {
   const acumulados: ArchivoDescomprimido[] = []
-  await procesarZipBuffer(buffer, 'archivo.zip', acumulados)
+  const estadoGlobal = { bytesTotales: 0, archivosProcesados: 0 }
+  await procesarZipBuffer(buffer, 'archivo.zip', acumulados, estadoGlobal, 0)
 
   if (acumulados.length === 0) return '[ZIP vacío o sin archivos procesables]'
 
