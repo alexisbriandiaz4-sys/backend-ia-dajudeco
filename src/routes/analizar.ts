@@ -84,6 +84,13 @@ router.post('/', async (req: Request, res: Response) => {
       
       // 4. Devolver resultado usando Webhook al servidor primario
       let SAP_URL = webhookUrl || process.env.SAP_WEBHOOK_URL || 'http://localhost:3000'
+      
+      // Si el frontend está corriendo localmente, mandará localhost. 
+      // Railway en la nube no puede alcanzar el localhost de la PC del usuario.
+      if (SAP_URL.includes('localhost') && process.env.SAP_WEBHOOK_URL) {
+         SAP_URL = process.env.SAP_WEBHOOK_URL
+      }
+
       if (SAP_URL && !SAP_URL.startsWith('http')) {
         SAP_URL = 'https://' + SAP_URL
       }
@@ -120,6 +127,11 @@ router.post('/', async (req: Request, res: Response) => {
       // Idealmente, se debe avisar a backend de NextJS del fracaso, pero omitimos por ahora la res.
       
       let SAP_URL = webhookUrl || process.env.SAP_WEBHOOK_URL || 'http://localhost:3000'
+
+      if (SAP_URL.includes('localhost') && process.env.SAP_WEBHOOK_URL) {
+         SAP_URL = process.env.SAP_WEBHOOK_URL
+      }
+
       if (SAP_URL && !SAP_URL.startsWith('http')) {
         SAP_URL = 'https://' + SAP_URL
       }
