@@ -1,5 +1,7 @@
-import { Router, Request, Response } from 'express'
+import { Router, Request, Response, NextFunction } from 'express'
 import fetch from 'node-fetch'
+import { z } from 'zod'
+import logger from '../lib/logger'
 import { extraerTextoPDF } from '../procesadores/pdf'
 import { extraerTextoWord } from '../procesadores/word'
 import { extraerTextoExcel } from '../procesadores/excel'
@@ -10,24 +12,29 @@ import { analizarConGroq, extraerGrafosConGroq, transcribirAudioConGroq } from '
 
 const router = Router()
 
-interface BodyAnalizar {
-  url: string
-  tipo: string
-  nombre: string
-  legajoId: string
-  archivoId: string
-  webhookUrl?: string
-}
+const bodySchema = z.object({
+  url: z.string().url('La URL del archivo es inválida'),
+  tipo: z.string().min(1, 'El tipo de archivo es requerido'),
+  nombre: z.string().min(1, 'El nombre del archivo es requerido'),
+  legajoId: z.string().min(1, 'El ID de legajo es requerido'),
+  archivoId: z.string().min(1, 'El ID de archivo es requerido'),
+  webhookUrl: z.string().url().optional().or(z.literal(''))
+})
 
-router.post('/', async (req: Request, res: Response) => {
-  const { url, tipo, nombre, legajoId, archivoId, webhookUrl } = req.body as BodyAnalizar
+type BodyAnalizar = z.infer<typeof bodySchema>
 
-  // Validar campos requeridos
-  if (!url || !tipo || !nombre || !legajoId || !archivoId) {
-    return res.status(400).json({ error: 'Faltan campos requeridos: url, tipo, nombre, legajoId, archivoId' })
+router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+  const result = bodySchema.safeParse(req.body)
+  
+  if (!result.success) {
+    const errorMessages = result.error.issues.map((e) => e.message).join(', ')
+    logger.warn(`Intento de análisis con datos inválidos: ${errorMessages}`)
+    return res.status(400).json({ error: `Datos inválidos: ${errorMessages}` })
   }
 
-  console.log(`[${new Date().toISOString()}] Analizando de forma asíncrona: ${nombre} (legajo: ${legajoId})`)
+  const { url, tipo, nombre, legajoId, archivoId, webhookUrl } = result.data
+
+  logger.info(`Analizando de forma asíncrona: ${nombre} (legajo: ${legajoId})`)
 
   // Se retorna inmediatamente el Accepted/202 para que el host originador (como Vercel)
   // no aborte el request por Timeout si esto toma más de 60 segundos.
@@ -39,7 +46,7 @@ router.post('/', async (req: Request, res: Response) => {
       // 1. Descargar el archivo desde Cloudinary
       const respuestaDescarga = await fetch(url)
       if (!respuestaDescarga.ok) {
-         console.error(`[ERROR ASYNC] ${nombre}: No se pudo descargar archivo`)
+         logger.error(`${nombre}: No se pudo descargar archivo desde ${url}`)
          return
       }
       const arrayBuffer = await respuestaDescarga.arrayBuffer()
@@ -63,7 +70,7 @@ router.post('/', async (req: Request, res: Response) => {
         contenidoExtraido = await procesarRar(buffer)
       } else if (['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/x-m4a', 'audio/mp4', 'video/mp4'].includes(tipo) || ['mp3', 'wav', 'ogg', 'm4a', 'mp4'].includes(ext)) {
         // Enviar Buffer como audio a Whisper - Groq permite máx 25MB
-        console.log(`[AUDIO] Enviando ${nombre} a Whisper IA...`)
+        logger.info(`[AUDIO] Enviando ${nombre} a Whisper IA...`)
         contenidoExtraido = await transcribirAudioConGroq(buffer, nombre)
       } else {
         contenidoExtraido = `[Tipo de archivo no soportado: ${tipo}]`
@@ -80,7 +87,7 @@ router.post('/', async (req: Request, res: Response) => {
         extraerGrafosConGroq(contenidoExtraido, limiteTexto)
       ])
 
-      console.log(`[${new Date().toISOString()}] ✓ Análisis de Worker completado: ${nombre}. Enviando reporte Webhook.`)
+      logger.info(`✓ Análisis de Worker completado: ${nombre}. Enviando reporte Webhook.`)
       
       // 4. Devolver resultado usando Webhook al servidor primario
       let SAP_URL = webhookUrl || process.env.SAP_WEBHOOK_URL || 'http://localhost:3000'
@@ -100,7 +107,7 @@ router.post('/', async (req: Request, res: Response) => {
       
       const SAP_SECRET = process.env.API_SECRET || process.env.SAP_WEBHOOK_SECRET || ''
 
-      console.log(`[INFO WEBHOOK] Despachando callback a -> ${SAP_URL}/api/ia/callback`)
+      logger.info(`Despachando callback a -> ${SAP_URL}/api/ia/callback`)
 
       try {
         await fetch(`${SAP_URL}/api/ia/callback`, {
@@ -119,11 +126,11 @@ router.post('/', async (req: Request, res: Response) => {
           })
         })
       } catch (webhookErr) {
-        console.error(`[ERROR WEBHOOK] Falló la comunicación hacia Next.js: ${webhookErr}`)
+        logger.error(`Falló la comunicación hacia Next.js:`, webhookErr)
       }
       
     } catch (error) {
-      console.error(`[CRÍTICO ASYNC] Worker colapsó procesando ${nombre}:`, error)
+      logger.error(`Worker colapsó procesando ${nombre}:`, error)
       // Idealmente, se debe avisar a backend de NextJS del fracaso, pero omitimos por ahora la res.
       
       let SAP_URL = webhookUrl || process.env.SAP_WEBHOOK_URL || 'http://localhost:3000'

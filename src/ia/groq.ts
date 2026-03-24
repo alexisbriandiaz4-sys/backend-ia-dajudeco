@@ -1,6 +1,7 @@
 import Groq from 'groq-sdk'
 import FormData from 'form-data'
 import fetch from 'node-fetch'
+import logger from '../lib/logger'
 const PROMPT_SISTEMA = `Sos un asistente forense judicial especializado en análisis de documentos para el 
 Departamento de Delitos Complejos de la Fiscalía de Rafaela, Santa Fe, Argentina.
 
@@ -93,7 +94,7 @@ ${contenidoTruncado}
       attempt++;
       if (error?.status === 429 && attempt < maxRetries) {
         const backoff = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
-        console.warn(`[GROQ RATE LIMIT 429] Reintentando en ${Math.round(backoff/1000)}s... (Intento ${attempt}/${maxRetries})`);
+        logger.warn(`[GROQ RATE LIMIT 429] Reintentando en ${Math.round(backoff/1000)}s... (Intento ${attempt}/${maxRetries})`);
         await delay(backoff);
         continue;
       }
@@ -144,7 +145,7 @@ export async function extraerGrafosConGroq(contenido: string, limite: number = 2
     const textoJSON = response.choices[0]?.message?.content || '{"conexiones": []}'
     return JSON.parse(textoJSON)
   } catch (error) {
-    console.error("Error extrayendo grafos:", error)
+    logger.error("Error extrayendo grafos:", error)
     return { conexiones: [] }
   }
 }
@@ -173,7 +174,7 @@ export async function transcribirAudioConGroq(buffer: Buffer, nombreArchivo: str
     const json = await response.json() as { text: string };
     return json.text || '[Audio vacío o ininteligible]';
   } catch (error) {
-    console.error("Error transcribiendo audio:", error)
+    logger.error("Error transcribiendo audio:", error)
     return "[Error en la transcripción del audio por formato o límite de tamaño]"
   }
 }
